@@ -1,17 +1,11 @@
----
-title: "Untitled"
-author: "Emil Hvitfeldt"
-date: "3/8/2021"
-output: github_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+Untitled
+================
+Emil Hvitfeldt
+3/8/2021
 
 ## R Markdown
 
-```{r, eval=FALSE}
+``` r
 library(tidyverse)
 library(emoji)
 athletes <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-08-03/athletes.csv')

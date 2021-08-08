@@ -1,0 +1,89 @@
+---
+title: "Friends Word Search"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r, message=FALSE}
+library(friends)
+library(tidyverse)
+library(tidytext)
+library(shiny)
+library(reactable)
+library(plotly)
+library(crosstalk)
+```
+
+```{r}
+main_cast <- friends %>%
+  count(speaker, sort = TRUE) %>%
+  slice_head(n = 6) %>%
+  pull(speaker)
+
+episodes <- friends %>%
+  count(season, episode) %>%
+  select(season, episode) %>%
+  distinct()
+
+token_data <- friends %>%
+  filter(speaker != "Scene Directions") %>%
+  unnest_tokens(token, text) %>%
+  filter(speaker %in% main_cast) %>%
+  mutate(speaker = factor(speaker, main_cast))
+```
+
+```{r}
+shiny::textInput("selection", "Search:", "friends")
+```
+
+```{r}
+sd <- reactive({
+    plotting_data <- token_data %>%
+  filter(token == tolower(input$selection)) %>%
+  count(season, episode, speaker)
+  
+  SharedData$new(data = plotting_data)
+})
+
+renderPlotly({
+p <- sd() %>% 
+  ggplot(aes(episode, season)) +
+  geom_point(aes(color = speaker)) +
+  facet_wrap(~ speaker, ncol = 2, drop = FALSE) +
+  guides(size = "none", color = "none") +
+  theme_minimal() +
+  xlim(c(1, 25)) +
+  ylim(c(1, 10)) +
+  theme(legend.position = 'none')
+
+  ggplotly(p, tooltip = FALSE) %>%
+    config(displayModeBar = FALSE) %>%
+    highlight(on = "plotly_click", off = "plotly_doubleclick")
+})
+```
+
+```{r}
+highlight_text <- function(text, word) {
+ str_replace_all(text, 
+                 fixed(tolower(input$selection), ignore_case = TRUE), 
+                 paste0("<span style='color:red'>", tolower(input$selection), "</span>")) 
+}
+
+renderReactable({
+  sd()$data(withSelection = TRUE) %>%
+    filter(selected_) %>%
+    select(season, episode) %>%
+    left_join(token_data) %>%
+    filter(token == tolower(input$selection)) %>%
+    left_join(friends, by = c("speaker", "season", "episode", "scene", "utterance")) %>%
+    select(speaker, text) %>%
+    mutate(text = highlight_text(text, tolower(input$selection))) %>%
+  reactable(columns = list(
+  text = colDef(html = TRUE)
+  ))
+})
+```
